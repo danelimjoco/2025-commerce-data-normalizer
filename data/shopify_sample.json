@@ -1,0 +1,11 @@
+{
+    "product_id": "abc123",
+    "name": "Cool Hoodie",
+    "price": {
+      "amount": "39.99",
+      "currency": "USD"
+    },
+    "inventory": 50,
+    "created_at": "2024-12-01T10:00:00Z"
+  }
+  
