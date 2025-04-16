@@ -68,7 +68,39 @@ make start-producer
 make start-api
 ```
 
-## API Documentation
+## API
+
+The API provides a RESTful interface for accessing normalized product data. It's built with FastAPI and includes features like filtering, pagination, and platform-specific queries.
+
+### API Architecture
+
+When you run `uvicorn api.main:app`, the following components work together:
+
+1. **FastAPI Application** (`main.py`):
+   - Handles HTTP requests and routing
+   - Provides endpoints for product queries
+   - Includes automatic API documentation at `/docs`
+
+2. **Database Layer** (`database.py`):
+   - Manages PostgreSQL connections
+   - Provides session management
+   - Handles connection pooling
+
+3. **Data Models**:
+   - `schemas.py`: SQLAlchemy models for database operations
+   - `models.py`: Pydantic models for request/response validation
+
+4. **Utilities**:
+   - `pagination.py`: Handles result pagination
+   - `filters.py`: Applies query filters (platform, price, quantity, search)
+
+The API follows RESTful principles and provides endpoints for:
+- Listing products with filtering and pagination
+- Getting individual products by ID
+- Querying platform-specific products
+- Health monitoring
+
+### API Documentation
 
 The API is available at `http://localhost:8001` with interactive documentation at `http://localhost:8001/docs`.
 

@@ -1,3 +1,4 @@
+# Pagination utility for database queries
 from sqlalchemy.orm import Query
 from typing import Tuple
 
@@ -12,6 +13,9 @@ def paginate(query: Query, page: int, per_page: int) -> Tuple[Query, int]:
     Returns:
         Tuple of (paginated query, total count)
     """
+    # Get total count of records
     total = query.count()
+    
+    # Calculate offset and apply pagination
     offset = (page - 1) * per_page
     return query.offset(offset).limit(per_page), total 
