@@ -1,4 +1,4 @@
-.PHONY: setup venv install init-db start-rabbitmq start-consumer start-producer start-all clean test
+.PHONY: setup venv install init-db start-rabbitmq start-consumer start-producer start-api start-all clean test
 
 # Python version to use
 PYTHON_VERSION = 3.9
@@ -33,12 +33,18 @@ start-consumer:
 start-producer:
 	osascript -e 'tell app "Terminal" to do script "cd $(PWD) && source $(VENV_BIN)/activate && python -m message_queue.producer shopify"'
 
+# Start API server in a new terminal
+start-api:
+	osascript -e 'tell app "Terminal" to do script "cd $(PWD) && source $(VENV_BIN)/activate && uvicorn api.main:app --reload --port 8001"'
+
 # Start all services
 start-all: start-rabbitmq
 	sleep 2  # Wait for RabbitMQ to start
 	$(MAKE) start-consumer
 	sleep 1  # Wait for consumer to start
 	$(MAKE) start-producer
+	sleep 1  # Wait for producer to start
+	$(MAKE) start-api
 
 # Clean up
 clean:

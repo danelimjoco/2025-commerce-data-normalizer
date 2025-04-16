@@ -8,6 +8,7 @@ This project simulates how a unified commerce API might normalize data from diff
 - Real-time data processing using RabbitMQ
 - Direct database storage of normalized data
 - Automatic updates of existing products
+- RESTful API for accessing normalized data
 
 ## Architecture
 
@@ -21,7 +22,7 @@ The system uses a message queue architecture with separate queues for each e-com
 
 - **Data Flow**:
   ```
-  Platform Producer -> Platform Queue -> Platform Consumer -> Products Table
+  Platform Producer -> Platform Queue -> Platform Consumer -> Products Table -> REST API
   ```
   Each platform's data flows through its own queue, ensuring that:
   - Platform-specific normalization logic remains isolated
@@ -36,7 +37,7 @@ The project includes a Makefile for easy setup and running:
 # Set up everything (venv, dependencies, database)
 make setup
 
-# Start all services (RabbitMQ, consumer, producer)
+# Start all services (RabbitMQ, consumer, producer, API)
 make start-all
 
 # Clean up everything
@@ -62,7 +63,47 @@ make start-consumer
 
 # Start producer in new terminal
 make start-producer
+
+# Start API server in new terminal
+make start-api
 ```
+
+## API Documentation
+
+The API is available at `http://localhost:8001` with interactive documentation at `http://localhost:8001/docs`.
+
+### Endpoints
+
+1. **List Products**
+   ```
+   GET /api/products
+   ```
+   Query Parameters:
+   - `page`: Page number (default: 1)
+   - `per_page`: Items per page (default: 20)
+   - `platform`: Filter by platform
+   - `min_price`: Minimum price
+   - `max_price`: Maximum price
+   - `min_quantity`: Minimum quantity
+   - `search`: Search in product titles
+
+2. **Get Single Product**
+   ```
+   GET /api/products/{id}
+   ```
+
+3. **Get Products by Platform**
+   ```
+   GET /api/products/platform/{platform}
+   ```
+   Query Parameters:
+   - `page`: Page number (default: 1)
+   - `per_page`: Items per page (default: 20)
+
+4. **Health Check**
+   ```
+   GET /health
+   ```
 
 ## Database Setup
 
@@ -146,10 +187,22 @@ There is a unique constraint on (platform, platform_id) to prevent duplicates.
 - `database/` → Database setup
   - `init.sh` → Database initialization script
   - `schema.sql` → Database schema definition
+- `api/` → REST API components
+  - `main.py` → FastAPI application and routes
+  - `models.py` → Pydantic models
+  - `schemas.py` → SQLAlchemy models
+  - `database.py` → Database connection
+  - `utils/` → Helper functions
+    - `pagination.py` → Pagination logic
+    - `filters.py` → Filtering logic
 
 ## Dependencies
-- pika==1.3.1 (RabbitMQ client)
+- pika==1.3.2 (RabbitMQ client)
 - psycopg2-binary==2.9.9 (PostgreSQL client)
-- python-dotenv==1.0.0 (Environment variable management)
+- python-dotenv==1.0.1 (Environment variable management)
+- fastapi==0.109.2 (Web framework)
+- uvicorn==0.27.1 (ASGI server)
+- sqlalchemy==2.0.27 (ORM)
+- pydantic==2.6.1 (Data validation)
 - RabbitMQ server
 - PostgreSQL server
