@@ -118,7 +118,31 @@ The API uses async functions (`async def`) for endpoints, but it's important to 
    - File operations that can happen in parallel
    - Background tasks that don't block the main flow
 
-2. **When Async is Less Beneficial**:
+2. **Async in Distributed Systems**:
+   ```python
+   async def get_product_with_distributed_services(product_id: int):
+       # Each service could be on a different machine
+       product_task = product_service.get_product(product_id)      # Service A
+       inventory_task = inventory_service.get_stock(product_id)    # Service B
+       pricing_task = pricing_service.get_pricing(product_id)      # Service C
+       reviews_task = reviews_service.get_reviews(product_id)      # Service D
+       
+       # Wait for all services to respond
+       product = await product_task
+       inventory = await inventory_task
+       pricing = await pricing_task
+       reviews = await reviews_task
+       
+       return combine_data(product, inventory, pricing, reviews)
+   ```
+   Benefits in distributed systems:
+   - Services can be on different machines/containers
+   - Network latency doesn't block other operations
+   - Better resource utilization across the system
+   - Improved fault tolerance (one service slow/failing doesn't block others)
+   - Scalability (services can be scaled independently)
+
+3. **When Async is Less Beneficial**:
    ```python
    async def get_products():
        # These operations must happen in sequence
@@ -131,11 +155,12 @@ The API uses async functions (`async def`) for endpoints, but it's important to 
    - Simple database queries without external calls
    - Operations that must complete in order
 
-3. **Why We Use Async Anyway**:
+4. **Why We Use Async Anyway**:
    - FastAPI is built on an async framework (Starlette)
    - It's a convention that makes the code ready for future async operations
    - The framework handles request/response cycles more efficiently
    - Makes it easier to add truly async operations later
+   - Prepares the codebase for distributed system scaling
 
 The API follows RESTful principles and provides endpoints for:
 - Listing products with filtering and pagination
