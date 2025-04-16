@@ -94,6 +94,49 @@ When you run `uvicorn api.main:app`, the following components work together:
    - `pagination.py`: Handles result pagination
    - `filters.py`: Applies query filters (platform, price, quantity, search)
 
+### Understanding Async Functions
+
+The API uses async functions (`async def`) for endpoints, but it's important to understand when async is beneficial:
+
+1. **When Async is Valuable**:
+   ```python
+   async def get_product_with_external_data():
+       # These operations can run in parallel
+       product_task = db.query(Product)        # Database query
+       inventory_task = get_inventory()        # External API call
+       reviews_task = get_reviews()            # Another API call
+       
+       # Wait for all to complete
+       product = await product_task
+       inventory = await inventory_task
+       reviews = await reviews_task
+       
+       return combine_data(product, inventory, reviews)
+   ```
+   - Multiple independent operations that can run simultaneously
+   - External API calls that don't depend on each other
+   - File operations that can happen in parallel
+   - Background tasks that don't block the main flow
+
+2. **When Async is Less Beneficial**:
+   ```python
+   async def get_products():
+       # These operations must happen in sequence
+       query = db.query(Product)          # Step 1
+       query = apply_filters(query)       # Step 2 (needs Step 1)
+       items = paginate(query)            # Step 3 (needs Step 2)
+       return items                       # Step 4 (needs Step 3)
+   ```
+   - Sequential operations where each step depends on the previous
+   - Simple database queries without external calls
+   - Operations that must complete in order
+
+3. **Why We Use Async Anyway**:
+   - FastAPI is built on an async framework (Starlette)
+   - It's a convention that makes the code ready for future async operations
+   - The framework handles request/response cycles more efficiently
+   - Makes it easier to add truly async operations later
+
 The API follows RESTful principles and provides endpoints for:
 - Listing products with filtering and pagination
 - Getting individual products by ID
