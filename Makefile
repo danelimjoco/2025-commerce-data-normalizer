@@ -1,4 +1,4 @@
-.PHONY: setup venv install init-db start-rabbitmq start-consumer start-producer start-api start-all clean test
+.PHONY: setup venv install init-db start-rabbitmq start-consumer start-producer start-api start-all clean request-shopify request-woocommerce start-scheduler
 
 # Python version to use
 PYTHON_VERSION = 3.9
@@ -21,29 +21,24 @@ init-db:
 	chmod +x database/init.sh
 	./database/init.sh
 
-# Start RabbitMQ server
-start-rabbitmq:
-	brew services start rabbitmq
-
-# Start consumer in a new terminal
-start-consumer:
-	osascript -e 'tell app "Terminal" to do script "cd $(PWD) && source $(VENV_BIN)/activate && python -m message_queue.consumer shopify"'
-
-# Start producer in a new terminal
-start-producer:
-	osascript -e 'tell app "Terminal" to do script "cd $(PWD) && source $(VENV_BIN)/activate && python -m message_queue.producer shopify"'
-
 # Start API server in a new terminal
 start-api:
-	osascript -e 'tell app "Terminal" to do script "cd $(PWD) && source $(VENV_BIN)/activate && uvicorn api.main:app --reload --port 8001"'
+	osascript -e 'tell app "Terminal" to do script "cd $(PWD) && source $(VENV_BIN)/activate && PYTHONPATH=$(PWD) uvicorn api.main:app --reload --port 8001"'
+
+# Make a single request to Shopify API
+request-shopify:
+	PYTHONPATH=$(PWD) $(VENV_BIN)/python -m external.request shopify
+
+# Make a single request to WooCommerce API
+request-woocommerce:
+	PYTHONPATH=$(PWD) $(VENV_BIN)/python -m external.request woocommerce
+
+# Start the scheduler in a new terminal
+start-scheduler:
+	osascript -e 'tell app "Terminal" to do script "cd $(PWD) && source $(VENV_BIN)/activate && PYTHONPATH=$(PWD) python -m external.scheduler"'
 
 # Start all services
-start-all: start-rabbitmq
-	sleep 2  # Wait for RabbitMQ to start
-	$(MAKE) start-consumer
-	sleep 1  # Wait for consumer to start
-	$(MAKE) start-producer
-	sleep 1  # Wait for producer to start
+start-all:
 	$(MAKE) start-api
 
 # Clean up

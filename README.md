@@ -1,33 +1,33 @@
 # Commerce Data Normalizer
 
-This project simulates how a unified commerce API might normalize data from different e-commerce platforms like Shopify and WooCommerce, with support for real-time processing and database storage.
+This project simulates how a unified commerce API might normalize data from different e-commerce platforms like Shopify and WooCommerce, with support for database storage and scheduled updates.
 
 ## Features
-- Parses real-world style JSON formats from different platforms
+- Simulates external API calls to Shopify and WooCommerce
 - Normalizes product data into a single schema
-- Real-time data processing using RabbitMQ
 - Direct database storage of normalized data
 - Automatic updates of existing products
 - RESTful API for accessing normalized data
+- Scheduled data fetching from external APIs
 
 ## Architecture
 
-The system uses a message queue architecture with separate queues for each e-commerce platform. This design choice offers several benefits:
+The system uses a direct API integration approach with scheduled updates. This design choice offers several benefits:
 
-- **Platform Independence**: Each platform (Shopify, WooCommerce) has its own dedicated pipeline, allowing for:
-  - Independent scaling of processing capacity
-  - Platform-specific error handling
+- **Platform Independence**: Each platform (Shopify, WooCommerce) has its own dedicated API client, allowing for:
+  - Platform-specific data normalization
+  - Independent error handling
   - Simplified monitoring and debugging
   - Easy addition of new platforms
 
 - **Data Flow**:
   ```
-  Platform Producer -> Platform Queue -> Platform Consumer -> Products Table -> REST API
+  External API Client -> Data Normalization -> Products Table -> REST API
   ```
-  Each platform's data flows through its own queue, ensuring that:
+  Each platform's data flows through its own API client, ensuring that:
   - Platform-specific normalization logic remains isolated
   - Processing issues in one platform don't affect others
-  - Data from different platforms can be processed at different rates
+  - Data from different platforms can be fetched at different rates
 
 ## Quick Start
 
@@ -37,7 +37,7 @@ The project includes a Makefile for easy setup and running:
 # Set up everything (venv, dependencies, database)
 make setup
 
-# Start all services (RabbitMQ, consumer, producer, API)
+# Start all services (API server and scheduler)
 make start-all
 
 # Clean up everything
@@ -55,17 +55,14 @@ make install
 # Initialize database
 make init-db
 
-# Start RabbitMQ
-make start-rabbitmq
-
-# Start consumer in new terminal
-make start-consumer
-
-# Start producer in new terminal
-make start-producer
-
-# Start API server in new terminal
+# Start API server
 make start-api
+
+# Start data scheduler
+make start-scheduler
+
+# Make a single API request
+python -m external.request shopify  # or woocommerce
 ```
 
 ## API
@@ -94,116 +91,62 @@ When you run `uvicorn api.main:app`, the following components work together:
    - `pagination.py`: Handles result pagination
    - `filters.py`: Applies query filters (platform, price, quantity, search)
 
-### Understanding Async Functions
+### External API Integration
 
-The API uses async functions (`async def`) for endpoints, but it's important to understand when async is beneficial:
+The system simulates external API calls through dedicated clients:
 
-1. **When Async is Valuable**:
-   ```python
-   async def get_product_with_external_data():
-       # These operations can run in parallel
-       product_task = db.query(Product)        # Database query
-       inventory_task = get_inventory()        # External API call
-       reviews_task = get_reviews()            # Another API call
-       
-       # Wait for all to complete
-       product = await product_task
-       inventory = await inventory_task
-       reviews = await reviews_task
-       
-       return combine_data(product, inventory, reviews)
-   ```
-   - Multiple independent operations that can run simultaneously
-   - External API calls that don't depend on each other
-   - File operations that can happen in parallel
-   - Background tasks that don't block the main flow
+1. **Shopify API Client** (`external/shopify.py`):
+   - Generates realistic product data
+   - Simulates API response times
+   - Handles rate limiting
+   - Normalizes data into common format
 
-2. **Async in Distributed Systems**:
-   ```python
-   async def get_product_with_distributed_services(product_id: int):
-       # Each service could be on a different machine
-       product_task = product_service.get_product(product_id)      # Service A
-       inventory_task = inventory_service.get_stock(product_id)    # Service B
-       pricing_task = pricing_service.get_pricing(product_id)      # Service C
-       reviews_task = reviews_service.get_reviews(product_id)      # Service D
-       
-       # Wait for all services to respond
-       product = await product_task
-       inventory = await inventory_task
-       pricing = await pricing_task
-       reviews = await reviews_task
-       
-       return combine_data(product, inventory, pricing, reviews)
-   ```
-   Benefits in distributed systems:
-   - Services can be on different machines/containers
-   - Network latency doesn't block other operations
-   - Better resource utilization across the system
-   - Improved fault tolerance (one service slow/failing doesn't block others)
-   - Scalability (services can be scaled independently)
+2. **WooCommerce API Client** (`external/woocommerce.py`):
+   - Generates realistic product data
+   - Simulates API response times
+   - Handles rate limiting
+   - Normalizes data into common format
 
-3. **When Async is Less Beneficial**:
-   ```python
-   async def get_products():
-       # These operations must happen in sequence
-       query = db.query(Product)          # Step 1
-       query = apply_filters(query)       # Step 2 (needs Step 1)
-       items = paginate(query)            # Step 3 (needs Step 2)
-       return items                       # Step 4 (needs Step 3)
-   ```
-   - Sequential operations where each step depends on the previous
-   - Simple database queries without external calls
-   - Operations that must complete in order
+3. **Data Scheduler** (`external/scheduler.py`):
+   - Runs periodic data fetches
+   - Updates existing products
+   - Inserts new products
+   - Handles errors and retries
 
-4. **Why We Use Async Anyway**:
-   - FastAPI is built on an async framework (Starlette)
-   - It's a convention that makes the code ready for future async operations
-   - The framework handles request/response cycles more efficiently
-   - Makes it easier to add truly async operations later
-   - Prepares the codebase for distributed system scaling
+### Making API Requests
 
-The API follows RESTful principles and provides endpoints for:
-- Listing products with filtering and pagination
-- Getting individual products by ID
-- Querying platform-specific products
-- Health monitoring
+You can make direct requests to the external APIs:
 
-### API Documentation
+```bash
+# Fetch data from Shopify
+python -m external.request shopify
 
-The API is available at `http://localhost:8001` with interactive documentation at `http://localhost:8001/docs`.
+# Fetch data from WooCommerce
+python -m external.request woocommerce
+```
 
-### Endpoints
+Each request will:
+1. Connect to the simulated API
+2. Fetch a random number of products (1-50)
+3. Normalize the data
+4. Update the database
+5. Show detailed operation results
 
-1. **List Products**
-   ```
-   GET /api/products
-   ```
-   Query Parameters:
-   - `page`: Page number (default: 1)
-   - `per_page`: Items per page (default: 20)
-   - `platform`: Filter by platform
-   - `min_price`: Minimum price
-   - `max_price`: Maximum price
-   - `min_quantity`: Minimum quantity
-   - `search`: Search in product titles
+### Scheduled Updates
 
-2. **Get Single Product**
-   ```
-   GET /api/products/{id}
-   ```
+The scheduler runs periodic updates to keep data fresh:
 
-3. **Get Products by Platform**
-   ```
-   GET /api/products/platform/{platform}
-   ```
-   Query Parameters:
-   - `page`: Page number (default: 1)
-   - `per_page`: Items per page (default: 20)
+```bash
+# Start the scheduler
+python -m external.scheduler
+```
 
-4. **Health Check**
-   ```
-   GET /health
-   ```
+The scheduler will:
+1. Run every hour
+2. Fetch data from both platforms
+3. Update existing products
+4. Insert new products
+5. Show detailed operation logs
 
 ## Database Setup
 
@@ -216,53 +159,6 @@ This will:
 - Create a postgres user if it doesn't exist
 - Create the commerce_data database
 - Set up the products table with the required schema
-
-## Real-time Processing
-The real-time processing system consists of three main components:
-
-1. **Message Queue (RabbitMQ)**
-   - Acts as a message broker between producers and consumers
-   - Ensures reliable message delivery
-   - Handles message routing to appropriate queues
-   - Maintains message order and persistence
-
-2. **Producer**
-   - Simulates real-time data from e-commerce platforms
-   - Generates random product data every 2 seconds
-   - Formats data according to platform-specific schemas
-   - Publishes messages to the appropriate queue
-   - Example usage:
-   ```bash
-   python -m message_queue.producer shopify
-   ```
-
-3. **Consumer**
-   - Listens for incoming messages on platform-specific queues
-   - Normalizes the received data into a unified format
-   - Directly loads data into PostgreSQL database
-   - Automatically updates existing products
-   - Handles errors and acknowledgments
-   - Example usage:
-   ```bash
-   python -m message_queue.consumer shopify
-   ```
-
-To start real-time processing:
-
-1. Start RabbitMQ server:
-```bash
-brew services start rabbitmq  # macOS
-```
-
-2. Start a consumer for a specific platform:
-```bash
-python -m message_queue.consumer shopify
-```
-
-3. Start a producer to simulate data:
-```bash
-python -m message_queue.producer shopify
-```
 
 ## Database Schema
 
@@ -280,10 +176,15 @@ The `products` table stores normalized product data with the following columns:
 There is a unique constraint on (platform, platform_id) to prevent duplicates.
 
 ## Project Structure
-- `message_queue/` → Real-time processing components
-  - `message_queue.py` → RabbitMQ handler
-  - `consumer.py` → Message consumer (loads data to database)
-  - `producer.py` → Data generator
+- `external/` → External API integration
+  - `shopify.py` → Shopify API client
+  - `woocommerce.py` → WooCommerce API client
+  - `scheduler.py` → Data fetching scheduler
+  - `request.py` → Direct API request utility
+  - `base.py` → Base API client class
+  - `utils/` → Helper functions
+    - `errors.py` → Error handling
+    - `rate_limit.py` → Rate limiting utilities
 - `database/` → Database setup
   - `init.sh` → Database initialization script
   - `schema.sql` → Database schema definition
@@ -297,12 +198,10 @@ There is a unique constraint on (platform, platform_id) to prevent duplicates.
     - `filters.py` → Filtering logic
 
 ## Dependencies
-- pika==1.3.2 (RabbitMQ client)
 - psycopg2-binary==2.9.9 (PostgreSQL client)
 - python-dotenv==1.0.1 (Environment variable management)
 - fastapi==0.109.2 (Web framework)
 - uvicorn==0.27.1 (ASGI server)
 - sqlalchemy==2.0.27 (ORM)
 - pydantic==2.6.1 (Data validation)
-- RabbitMQ server
 - PostgreSQL server
