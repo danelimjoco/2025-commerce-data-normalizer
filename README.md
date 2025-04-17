@@ -1,14 +1,15 @@
 # Commerce Data Normalizer
 
-This project simulates how a unified commerce API might normalize data from different e-commerce platforms like Shopify and WooCommerce, with support for database storage and scheduled updates.
+This project simulates how a unified commerce API might normalize merchant metrics data from different e-commerce platforms like Shopify and WooCommerce, with support for database storage and scheduled updates.
 
 ## Features
 - Simulates external API calls to Shopify and WooCommerce
-- Normalizes product data into a single schema
-- Direct database storage of normalized data
-- Automatic updates of existing products
-- RESTful API for accessing normalized data
+- Normalizes merchant metrics into a single schema
+- Direct database storage of normalized metrics
+- Automatic updates of existing merchant data
+- RESTful API for accessing normalized metrics
 - Scheduled data fetching from external APIs
+- Realistic mock data generation with growth patterns
 
 ## Architecture
 
@@ -22,13 +23,35 @@ The system uses a direct API integration approach with scheduled updates. This d
 
 - **Data Flow**:
   ```
-  External API Client -> Data Normalization -> Products Table -> REST API
+  External API Client -> Data Normalization -> Merchant Metrics Table -> REST API
   ```
 
   Each platform's data flows through its own API client, ensuring that:
   - Platform-specific normalization logic remains isolated
   - Processing issues in one platform don't affect others
   - Data from different platforms can be fetched at different rates
+
+## Realistic Mock Data
+
+The system generates realistic merchant metrics with the following characteristics:
+
+1. **Initial Ranges** (same for both platforms):
+   - Total Sales: $10,000 - $1,000,000
+   - Total Orders: 100 - 10,000
+   - Average Order Value: $50 - $500
+   - Total Customers: 50 - 5,000
+   - Total Products: 10 - 1,000
+
+2. **Growth Patterns**:
+   - Total Sales: Increases by 0-15% per update
+   - Total Orders: Increases by 0-10% per update
+   - Average Order Value: Fluctuates by -5% to +5%
+   - Total Customers: Increases by 0-5% per update
+   - Total Products: Increases by 0-2% per update
+
+3. **Timestamp Management**:
+   - `created_at`: Preserved for existing merchants
+   - `updated_at`: Updated on every change
 
 ## Quick Start
 
@@ -62,13 +85,13 @@ make start-api
 # Start data scheduler
 make start-scheduler
 
-# Make a single API request
-python -m external.request shopify  # or woocommerce
+# Make a single API request to a specific platform
+make request-shopify  # or request-woocommerce
 ```
 
 ## API
 
-The API provides a RESTful interface for accessing normalized product data. It's built with FastAPI and includes features like filtering, pagination, and platform-specific queries.
+The API provides a RESTful interface for accessing normalized merchant metrics. It's built with FastAPI and includes features like filtering, pagination, and platform-specific queries.
 
 ### API Architecture
 
@@ -76,7 +99,7 @@ When you run `uvicorn api.main:app`, the following components work together:
 
 1. **FastAPI Application** (`main.py`):
    - Handles HTTP requests and routing
-   - Provides endpoints for product queries
+   - Provides endpoints for merchant metrics queries
    - Includes automatic API documentation at `/docs`
 
 2. **Database Layer** (`database.py`):
@@ -90,26 +113,26 @@ When you run `uvicorn api.main:app`, the following components work together:
 
 4. **Utilities**:
    - `pagination.py`: Handles result pagination
-   - `filters.py`: Applies query filters (platform, price, quantity, search)
+   - `filters.py`: Applies query filters (platform, metrics ranges)
 
 ### External API Integration
 
 The system simulates external API calls through dedicated clients:
 
 1. **Shopify API Client** (`external/shopify.py`):
-   - Generates realistic product data
+   - Generates realistic merchant metrics
    - Simulates API response times
    - Normalizes data into common format
 
 2. **WooCommerce API Client** (`external/woocommerce.py`):
-   - Generates realistic product data
+   - Generates realistic merchant metrics
    - Simulates API response times
    - Normalizes data into common format
 
 3. **Data Scheduler** (`external/scheduler.py`):
-   - Runs periodic data fetches
-   - Updates existing products
-   - Inserts new products
+   - Runs hourly data fetches
+   - Updates existing merchant metrics
+   - Inserts new merchant data
    - Handles errors and retries
 
 ### Making API Requests
@@ -118,33 +141,32 @@ You can make direct requests to the external APIs:
 
 ```bash
 # Fetch data from Shopify
-python -m external.request shopify
+make request-shopify
 
 # Fetch data from WooCommerce
-python -m external.request woocommerce
+make request-woocommerce
 ```
 
 Each request will:
 1. Connect to the simulated API
-2. Fetch a random number of products (1-50)
-3. Normalize the data
-4. Update the database
-5. Show detailed operation results
+2. Generate realistic merchant metrics
+3. Update the database with new or updated metrics
+4. Show detailed operation results
 
 ### Scheduled Updates
 
-The scheduler runs periodic updates to keep data fresh:
+The scheduler runs hourly updates to keep data fresh:
 
 ```bash
 # Start the scheduler
-python -m external.scheduler
+make start-scheduler
 ```
 
 The scheduler will:
 1. Run every hour
 2. Fetch data from both platforms
-3. Update existing products
-4. Insert new products
+3. Update existing merchant metrics
+4. Insert new merchant data
 5. Show detailed operation logs
 
 ## Database Setup
@@ -157,22 +179,24 @@ make init-db
 This will:
 - Create a postgres user if it doesn't exist
 - Create the commerce_data database
-- Set up the products table with the required schema
+- Set up the merchant_metrics table with the required schema
 
 ## Database Schema
 
-The `products` table stores normalized product data with the following columns:
+The `merchant_metrics` table stores normalized merchant data with the following columns:
 - `id`: Auto-incrementing primary key
+- `merchant_id`: Unique identifier for the merchant
 - `platform`: The e-commerce platform (e.g., 'shopify', 'woocommerce')
-- `platform_id`: The product ID from the platform
-- `title`: Product title
-- `price`: Product price
-- `currency`: Currency code (3 letters)
-- `quantity`: Available quantity
+- `merchant_name`: Name of the merchant
+- `total_sales`: Total sales amount
+- `total_orders`: Total number of orders
+- `average_order_value`: Average value of orders
+- `total_customers`: Total number of customers
+- `total_products`: Total number of products
 - `created_at`: Timestamp when the record was created
 - `updated_at`: Timestamp when the record was last updated
 
-There is a unique constraint on (platform, platform_id) to prevent duplicates.
+There is a unique constraint on (platform, merchant_id) to prevent duplicates.
 
 ## Project Structure
 - `external/` → External API integration
@@ -181,8 +205,6 @@ There is a unique constraint on (platform, platform_id) to prevent duplicates.
   - `scheduler.py` → Data fetching scheduler
   - `request.py` → Direct API request utility
   - `base.py` → Base API client class
-  - `utils/` → Helper functions
-    - `errors.py` → Error handling
 - `database/` → Database setup
   - `init.sh` → Database initialization script
   - `schema.sql` → Database schema definition
