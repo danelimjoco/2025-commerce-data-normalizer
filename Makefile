@@ -1,11 +1,11 @@
-.PHONY: setup venv install init-db start-rabbitmq start-consumer start-producer start-api start-all clean request-shopify request-woocommerce start-scheduler
+.PHONY: setup venv install init-db start-api clean request-shopify request-woocommerce start-scheduler start-all
 
 # Python version to use
 PYTHON_VERSION = 3.9
 VENV_NAME = venv
 VENV_BIN = $(VENV_NAME)/bin
 
-setup: venv install init-db
+setup: venv install init-db activate
 
 # Create virtual environment
 venv:
@@ -21,6 +21,11 @@ init-db:
 	chmod +x database/init.sh
 	./database/init.sh
 
+# Activate virtual environment
+activate:
+	@echo "Run this command to activate the virtual environment:"
+	@echo "source $(VENV_BIN)/activate"
+
 # Start API server in a new terminal
 start-api:
 	osascript -e 'tell app "Terminal" to do script "cd $(PWD) && source $(VENV_BIN)/activate && PYTHONPATH=$(PWD) uvicorn api.main:app --reload --port 8001"'
@@ -35,13 +40,13 @@ request-woocommerce:
 
 # Start the scheduler in a new terminal
 start-scheduler:
-	osascript -e 'tell app "Terminal" to do script "cd $(PWD) && source $(VENV_BIN)/activate && PYTHONPATH=$(PWD) python -m external.scheduler"'
+	osascript -e 'tell app "Terminal" to do script "cd $(PWD) && PYTHONPATH=$(PWD) $(VENV_BIN)/python -m external.scheduler"'
 
 # Start all services
 start-all:
 	$(MAKE) start-api
+	$(MAKE) start-scheduler
 
 # Clean up
 clean:
-	rm -rf $(VENV_NAME)
-	brew services stop rabbitmq 
+	rm -rf $(VENV_NAME) 

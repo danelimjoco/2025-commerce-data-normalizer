@@ -1,30 +1,22 @@
-# SQLAlchemy model for the products table
-from sqlalchemy import Column, Integer, String, Numeric, DateTime
+# SQLAlchemy model for merchant metrics
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, Float
 from sqlalchemy.sql import func
+from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime
 from .database import Base
 
-class Product(Base):
-    # Define the table name and schema
-    __tablename__ = "products"
-    __table_args__ = (
-        {'schema': 'public'},
-    )
+Base = declarative_base()
 
-    # Primary key
+class MerchantMetrics(Base):
+    __tablename__ = "merchant_metrics"
+
     id = Column(Integer, primary_key=True, index=True)
-    
-    # Platform information
-    platform = Column(String(50), nullable=False)  # e.g., 'shopify', 'woocommerce'
-    platform_id = Column(String(255), nullable=False)  # Original ID from the platform
-    
-    # Product details
-    title = Column(String(255), nullable=False)
-    price = Column(Numeric(10, 2), nullable=False)
-    currency = Column(String(3), nullable=False)  # e.g., 'USD', 'EUR'
-    quantity = Column(Integer, nullable=False)
-    
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), nullable=False)
-    updated_at = Column(DateTime(timezone=True), nullable=False, 
-                       server_default=func.now(),  # Default to current time
-                       onupdate=func.now())  # Update on change 
+    platform = Column(String(50), nullable=False)
+    merchant_name = Column(String(255), nullable=False)
+    total_sales = Column(Float, nullable=False)
+    total_orders = Column(Integer, nullable=False)
+    average_order_value = Column(Float, nullable=False)
+    total_customers = Column(Integer, nullable=False)
+    total_products = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now()) 

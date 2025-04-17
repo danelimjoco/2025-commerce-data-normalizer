@@ -1,88 +1,40 @@
 import asyncio
-import sys
-from datetime import datetime
-from external.shopify import ShopifyAPI
-from external.woocommerce import WooCommerceAPI
-from api.database import get_db
-from api.schemas import Product
+import argparse
+from .woocommerce import WooCommerceAPI
+from .shopify import ShopifyAPI
+import logging
 
-async def make_request(platform: str):
-    """Make a single request to the specified platform and store in database."""
-    if platform.lower() == "shopify":
-        api = ShopifyAPI()
-    elif platform.lower() == "woocommerce":
-        api = WooCommerceAPI()
-    else:
-        print(f"Unknown platform: {platform}")
-        return
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
+async def fetch_metrics(platform: str):
+    """Fetch metrics for a specific platform"""
     try:
-        # Get all products
-        response = await api.get_products()
-        products = response["data"]
-        print(f"\nFetched {len(products)} products from {platform}")
-        
-        # Track updates vs inserts
-        updates = 0
-        inserts = 0
-        
-        # Store in database
-        db = next(get_db())
-        try:
-            for product_data in products:
-                # First try to get existing product
-                existing_product = db.query(Product).filter_by(
-                    platform=platform,
-                    platform_id=product_data["id"]
-                ).first()
-                
-                if existing_product:
-                    # Update existing product
-                    existing_product.title = product_data.get("title") or product_data.get("name")
-                    existing_product.price = product_data["price"]
-                    existing_product.currency = product_data["currency"]
-                    existing_product.quantity = product_data.get("quantity") or product_data.get("stock_quantity")
-                    existing_product.updated_at = datetime.utcnow()
-                    updates += 1
-                else:
-                    # Create new product
-                    product = Product(
-                        platform=platform,
-                        platform_id=product_data["id"],
-                        title=product_data.get("title") or product_data.get("name"),
-                        price=product_data["price"],
-                        currency=product_data["currency"],
-                        quantity=product_data.get("quantity") or product_data.get("stock_quantity"),
-                        created_at=datetime.utcnow(),
-                        updated_at=datetime.utcnow()
-                    )
-                    db.add(product)
-                    inserts += 1
-            
-            db.commit()
-            print(f"Database operations for {platform}:")
-            print(f"  - Updated {updates} existing products")
-            print(f"  - Inserted {inserts} new products")
-            print(f"  - Total products processed: {updates + inserts}")
-            
-            # Verify the changes
-            total_in_db = db.query(Product).filter_by(platform=platform).count()
-            print(f"  - Total products in database for {platform}: {total_in_db}")
-            
-        except Exception as e:
-            print(f"Database error: {e}")
-            db.rollback()
-        finally:
-            db.close()
-            
+        logger.info(f"Starting metrics fetch for {platform}")
+        api = ShopifyAPI() if platform.lower() == 'shopify' else WooCommerceAPI()
+        await api.get_merchant_metrics()
+        logger.info(f"Successfully completed metrics fetch for {platform}")
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error fetching metrics for {platform}: {str(e)}")
+        raise
+
+def main():
+    parser = argparse.ArgumentParser(description='Fetch merchant metrics for a specific platform')
+    parser.add_argument('platform', choices=['shopify', 'woocommerce'], 
+                       help='Platform to fetch metrics for')
+    args = parser.parse_args()
+    
+    try:
+        asyncio.run(fetch_metrics(args.platform))
+    except KeyboardInterrupt:
+        logger.info("Metrics fetch interrupted by user")
+    except Exception as e:
+        logger.error(f"Fatal error: {str(e)}")
+        exit(1)
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python -m external.request <platform>")
-        print("Platforms: shopify, woocommerce")
-        sys.exit(1)
-    
-    platform = sys.argv[1]
-    asyncio.run(make_request(platform)) 
+    main() 
