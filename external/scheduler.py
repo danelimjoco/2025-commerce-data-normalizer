@@ -2,6 +2,8 @@ import asyncio
 from datetime import datetime, timedelta
 from .shopify import ShopifyAPI
 from .woocommerce import WooCommerceAPI
+from api.schemas import Base
+from api.database import engine
 
 class DataFetcher:
     def __init__(self):
@@ -22,6 +24,9 @@ class DataFetcher:
 
 async def run_scheduler():
     """Run the data fetcher every minute"""
+    # Initialize database tables
+    Base.metadata.create_all(bind=engine)
+    
     fetcher = DataFetcher()
     while True:
         print(f"\nStarting scheduled fetch at {datetime.now()}")

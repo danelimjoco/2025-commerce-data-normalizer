@@ -1,106 +1,111 @@
 # FastAPI application for the e-commerce API
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from .database import get_db
-from .schemas import MerchantMetrics
-from .models import MerchantMetrics as MerchantMetricsSchema
-from .utils.pagination import paginate
+from . import schemas
+from .database import SessionLocal, engine
 from datetime import datetime
 
-# Create FastAPI application with metadata
-app = FastAPI(
-    title="E-commerce API",
-    description="API for managing merchant metrics across different e-commerce platforms",
-    version="1.0.0"
-)
+schemas.Base.metadata.create_all(bind=engine)
 
-@app.get("/merchant-metrics/", response_model=List[MerchantMetricsSchema])
+app = FastAPI()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+@app.get("/merchants/{merchant_id}/metrics", response_model=schemas.MerchantMetrics)
 async def get_merchant_metrics(
+    merchant_id: str,
     platform: Optional[str] = Query(None, description="Filter by platform (shopify or woocommerce)"),
-    min_sales: Optional[float] = Query(None, description="Minimum total sales amount"),
-    max_sales: Optional[float] = Query(None, description="Maximum total sales amount"),
-    min_orders: Optional[int] = Query(None, description="Minimum number of orders"),
-    max_orders: Optional[int] = Query(None, description="Maximum number of orders"),
-    page: int = Query(1, description="Page number for pagination"),
-    per_page: int = Query(10, description="Number of items per page"),
     db: Session = Depends(get_db)
 ):
     """
-    Get all merchant metrics with filtering and pagination.
-    
-    - Filter by platform, sales range, and order count
-    - Results are paginated
-    - Returns detailed merchant metrics including sales, orders, and customer data
+    Get metrics for a merchant across all platforms.
+    Optionally filter by a specific platform.
     """
-    query = db.query(MerchantMetrics)
+    query = db.query(schemas.MerchantPlatformMetrics).filter(
+        schemas.MerchantPlatformMetrics.merchant_id == merchant_id
+    )
     
     if platform:
-        query = query.filter(MerchantMetrics.platform == platform)
-    if min_sales is not None:
-        query = query.filter(MerchantMetrics.total_sales >= min_sales)
-    if max_sales is not None:
-        query = query.filter(MerchantMetrics.total_sales <= max_sales)
-    if min_orders is not None:
-        query = query.filter(MerchantMetrics.total_orders >= min_orders)
-    if max_orders is not None:
-        query = query.filter(MerchantMetrics.total_orders <= max_orders)
+        if platform not in ['shopify', 'woocommerce']:
+            raise HTTPException(status_code=400, detail="Invalid platform. Must be 'shopify' or 'woocommerce'")
+        query = query.filter(schemas.MerchantPlatformMetrics.platform == platform)
     
-    paginated_query, _ = paginate(query, page, per_page)
-    return paginated_query.all()
-
-@app.get("/merchant-metrics/{merchant_id}", response_model=MerchantMetricsSchema)
-async def get_merchant_metric(
-    merchant_id: str,
-    db: Session = Depends(get_db)
-):
-    """
-    Get detailed metrics for a specific merchant.
+    metrics = query.all()
     
-    - Returns all metrics including sales, orders, and customer data
-    - Includes creation and last update timestamps
-    """
-    merchant = db.query(MerchantMetrics).filter(MerchantMetrics.merchant_id == merchant_id).first()
-    if merchant is None:
+    if not metrics:
         raise HTTPException(status_code=404, detail="Merchant not found")
-    return merchant
+    
+    # Calculate aggregated totals
+    total_sales = sum(m.total_sales for m in metrics)
+    total_orders = sum(m.total_orders for m in metrics)
+    total_customers = sum(m.total_customers for m in metrics)
+    avg_order_value = total_sales / total_orders if total_orders > 0 else 0
+    
+    # Convert database models to response models
+    platform_stats = [
+        schemas.MerchantPlatformStats(
+            platform=m.platform,
+            total_sales=m.total_sales,
+            total_orders=m.total_orders,
+            average_order_value=m.average_order_value,
+            total_customers=m.total_customers,
+            total_products=m.total_products,
+            updated_at=m.updated_at
+        ) for m in metrics
+    ]
+    
+    return schemas.MerchantMetrics(
+        merchant_id=merchant_id,
+        merchant_name=metrics[0].merchant_name,
+        platforms=platform_stats,
+        total_sales=total_sales,
+        total_orders=total_orders,
+        average_order_value=avg_order_value,
+        total_customers=total_customers
+    )
 
-@app.get("/merchant-metrics/platform/{platform}/stats", response_model=dict)
-async def get_platform_stats(
-    platform: str,
-    db: Session = Depends(get_db)
-):
+@app.get("/platforms/{platform}/stats", response_model=schemas.PlatformStats)
+async def get_platform_stats(platform: str, db: Session = Depends(get_db)):
     """
     Get aggregated statistics for a specific platform.
-    
-    - Returns total merchants, total sales, average order value, etc.
-    - Platform must be either 'shopify' or 'woocommerce'
     """
     if platform not in ['shopify', 'woocommerce']:
         raise HTTPException(status_code=400, detail="Invalid platform. Must be 'shopify' or 'woocommerce'")
     
-    merchants = db.query(MerchantMetrics).filter(MerchantMetrics.platform == platform).all()
+    merchants = db.query(schemas.MerchantPlatformMetrics).filter(schemas.MerchantPlatformMetrics.platform == platform).all()
     
     if not merchants:
-        return {
-            "platform": platform,
-            "total_merchants": 0,
-            "total_sales": 0,
-            "total_orders": 0,
-            "average_order_value": 0,
-            "total_customers": 0,
-            "total_products": 0
-        }
+        return schemas.PlatformStats(
+            platform=platform,
+            total_merchants=0,
+            total_sales=0,
+            total_orders=0,
+            average_order_value=0,
+            total_customers=0,
+            total_products=0
+        )
     
-    return {
-        "platform": platform,
-        "total_merchants": len(merchants),
-        "total_sales": sum(m.total_sales for m in merchants),
-        "total_orders": sum(m.total_orders for m in merchants),
-        "average_order_value": sum(m.average_order_value for m in merchants) / len(merchants),
-        "total_customers": sum(m.total_customers for m in merchants),
-        "total_products": sum(m.total_products for m in merchants)
-    }
+    total_sales = sum(m.total_sales for m in merchants)
+    total_orders = sum(m.total_orders for m in merchants)
+    total_customers = sum(m.total_customers for m in merchants)
+    total_products = sum(m.total_products for m in merchants)
+    avg_order_value = total_sales / total_orders if total_orders > 0 else 0
+    
+    return schemas.PlatformStats(
+        platform=platform,
+        total_merchants=len(merchants),
+        total_sales=total_sales,
+        total_orders=total_orders,
+        average_order_value=avg_order_value,
+        total_customers=total_customers,
+        total_products=total_products
+    )
 
 @app.get("/health")
 async def health_check():

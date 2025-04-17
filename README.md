@@ -10,6 +10,8 @@ This project simulates how a unified commerce API might normalize merchant metri
 - RESTful API for accessing normalized metrics
 - Scheduled data fetching from external APIs
 - Realistic mock data generation with growth patterns
+- Cross-platform merchant metrics aggregation
+- Lender-focused borrower metrics views
 
 ## Architecture
 
@@ -30,6 +32,29 @@ The system uses a direct API integration approach with scheduled updates. This d
   - Platform-specific normalization logic remains isolated
   - Processing issues in one platform don't affect others
   - Data from different platforms can be fetched at different rates
+
+## Use Cases
+
+### Cross-Platform Merchant Metrics
+The API provides a unified view of merchant performance across multiple platforms, which is particularly valuable for:
+
+1. **Lenders and Financial Institutions**
+   - Get a complete picture of a borrower's e-commerce business
+   - View aggregated metrics across all platforms
+   - Make informed lending decisions based on total business performance
+   - Monitor borrower health across their entire e-commerce presence
+
+2. **Merchant Analytics**
+   - Compare performance across different platforms
+   - Identify platform-specific strengths and weaknesses
+   - Make data-driven decisions about platform investments
+   - Track overall business growth regardless of platform
+
+3. **Business Intelligence**
+   - Generate reports that combine data from multiple platforms
+   - Create unified dashboards for merchant performance
+   - Analyze cross-platform trends and patterns
+   - Make strategic decisions based on complete data
 
 ## Realistic Mock Data
 
@@ -95,34 +120,60 @@ The API provides a RESTful interface for accessing normalized merchant metrics. 
 
 ### API Endpoints
 
-1. **Get All Merchant Metrics**
+1. **Get Merchant Metrics**
    ```
-   GET /merchant-metrics/
+   GET /merchants/{merchant_id}/metrics
    ```
-   - Query Parameters:
-     - `platform`: Filter by platform (shopify or woocommerce)
-     - `min_sales`: Minimum total sales amount
-     - `max_sales`: Maximum total sales amount
-     - `min_orders`: Minimum number of orders
-     - `max_orders`: Maximum number of orders
-     - `page`: Page number for pagination (default: 1)
-     - `per_page`: Items per page (default: 10)
+   - Returns metrics for a merchant across all platforms
+   - Optional `platform` query parameter to filter by specific platform
+   - Includes both individual platform metrics and aggregated totals
+   - Example: `GET /merchants/merchant123/metrics?platform=shopify`
 
-2. **Get Specific Merchant Metrics**
+   Response:
+   ```json
+   {
+     "merchant_id": "merchant123",
+     "merchant_name": "Example Store",
+     "platforms": [
+       {
+         "platform": "shopify",
+         "total_sales": 50000.0,
+         "total_orders": 1000,
+         "average_order_value": 50.0,
+         "total_customers": 500,
+         "total_products": 100,
+         "updated_at": "2024-01-31T00:00:00"
+       }
+     ],
+     "total_sales": 50000.0,
+     "total_orders": 1000,
+     "average_order_value": 50.0,
+     "total_customers": 500
+   }
    ```
-   GET /merchant-metrics/{merchant_id}
-   ```
-   - Returns detailed metrics for a specific merchant
-   - Example: `GET /merchant-metrics/PSE992296`
 
-3. **Get Platform Statistics**
+2. **Get Platform Statistics**
    ```
-   GET /merchant-metrics/platform/{platform}/stats
+   GET /platforms/{platform}/stats
    ```
-   - Returns aggregated statistics for a platform
-   - Example: `GET /merchant-metrics/platform/woocommerce/stats`
+   - Returns aggregated statistics for a specific platform
+   - Shows totals across all merchants on that platform
+   - Example: `GET /platforms/woocommerce/stats`
 
-4. **Health Check**
+   Response:
+   ```json
+   {
+     "platform": "woocommerce",
+     "total_merchants": 100,
+     "total_sales": 1000000.0,
+     "total_orders": 20000,
+     "average_order_value": 50.0,
+     "total_customers": 50000,
+     "total_products": 5000
+   }
+   ```
+
+3. **Health Check**
    ```
    GET /health
    ```
@@ -142,9 +193,10 @@ When you run `uvicorn api.main:app`, the following components work together:
    - Provides session management
    - Handles connection pooling
 
-3. **Data Models**:
-   - `schemas.py`: SQLAlchemy models for database operations
-   - `models.py`: Pydantic models for request/response validation
+3. **Data Models** (`schemas.py`):
+   - SQLAlchemy models for database operations
+   - Pydantic models for request/response validation
+   - Clear separation between platform and merchant metrics
 
 4. **Utilities**:
    - `pagination.py`: Handles result pagination
