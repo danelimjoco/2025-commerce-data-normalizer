@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional, List
 
 class MerchantMetricsBase(BaseModel):
+    merchant_id: str
     platform: str
     merchant_name: str
     total_sales: float

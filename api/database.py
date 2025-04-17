@@ -1,12 +1,15 @@
 # Database connection setup for the API
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Create base class for SQLAlchemy models
+Base = declarative_base()
 
 # Database connection parameters with defaults
 DB_NAME = os.getenv("DB_NAME", "commerce_data")
@@ -23,9 +26,6 @@ engine = create_engine(DATABASE_URL)
 
 # Create a session factory for database operations
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Create base class for SQLAlchemy models
-Base = declarative_base()
 
 # Dependency function to get a database session
 # Used by FastAPI to manage database connections

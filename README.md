@@ -93,6 +93,41 @@ make request-shopify  # or request-woocommerce
 
 The API provides a RESTful interface for accessing normalized merchant metrics. It's built with FastAPI and includes features like filtering, pagination, and platform-specific queries.
 
+### API Endpoints
+
+1. **Get All Merchant Metrics**
+   ```
+   GET /merchant-metrics/
+   ```
+   - Query Parameters:
+     - `platform`: Filter by platform (shopify or woocommerce)
+     - `min_sales`: Minimum total sales amount
+     - `max_sales`: Maximum total sales amount
+     - `min_orders`: Minimum number of orders
+     - `max_orders`: Maximum number of orders
+     - `page`: Page number for pagination (default: 1)
+     - `per_page`: Items per page (default: 10)
+
+2. **Get Specific Merchant Metrics**
+   ```
+   GET /merchant-metrics/{merchant_id}
+   ```
+   - Returns detailed metrics for a specific merchant
+   - Example: `GET /merchant-metrics/PSE992296`
+
+3. **Get Platform Statistics**
+   ```
+   GET /merchant-metrics/platform/{platform}/stats
+   ```
+   - Returns aggregated statistics for a platform
+   - Example: `GET /merchant-metrics/platform/woocommerce/stats`
+
+4. **Health Check**
+   ```
+   GET /health
+   ```
+   - Returns API status and current timestamp
+
 ### API Architecture
 
 When you run `uvicorn api.main:app`, the following components work together:
@@ -184,15 +219,15 @@ This will:
 ## Database Schema
 
 The `merchant_metrics` table stores normalized merchant data with the following columns:
-- `id`: Auto-incrementing primary key
-- `merchant_id`: Unique identifier for the merchant
+- `id`: Auto-incrementing primary key (Integer)
+- `merchant_id`: Unique identifier for the merchant (String, max 10 chars)
 - `platform`: The e-commerce platform (e.g., 'shopify', 'woocommerce')
 - `merchant_name`: Name of the merchant
-- `total_sales`: Total sales amount
-- `total_orders`: Total number of orders
-- `average_order_value`: Average value of orders
-- `total_customers`: Total number of customers
-- `total_products`: Total number of products
+- `total_sales`: Total sales amount (Float)
+- `total_orders`: Total number of orders (Integer)
+- `average_order_value`: Average value of orders (Float)
+- `total_customers`: Total number of customers (Integer)
+- `total_products`: Total number of products (Integer)
 - `created_at`: Timestamp when the record was created
 - `updated_at`: Timestamp when the record was last updated
 
