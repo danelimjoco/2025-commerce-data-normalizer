@@ -24,6 +24,7 @@ The system uses a direct API integration approach with scheduled updates. This d
   ```
   External API Client -> Data Normalization -> Products Table -> REST API
   ```
+
   Each platform's data flows through its own API client, ensuring that:
   - Platform-specific normalization logic remains isolated
   - Processing issues in one platform don't affect others
@@ -98,13 +99,11 @@ The system simulates external API calls through dedicated clients:
 1. **Shopify API Client** (`external/shopify.py`):
    - Generates realistic product data
    - Simulates API response times
-   - Handles rate limiting
    - Normalizes data into common format
 
 2. **WooCommerce API Client** (`external/woocommerce.py`):
    - Generates realistic product data
    - Simulates API response times
-   - Handles rate limiting
    - Normalizes data into common format
 
 3. **Data Scheduler** (`external/scheduler.py`):
@@ -184,7 +183,6 @@ There is a unique constraint on (platform, platform_id) to prevent duplicates.
   - `base.py` → Base API client class
   - `utils/` → Helper functions
     - `errors.py` → Error handling
-    - `rate_limit.py` → Rate limiting utilities
 - `database/` → Database setup
   - `init.sh` → Database initialization script
   - `schema.sql` → Database schema definition
