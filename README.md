@@ -312,3 +312,179 @@ There is a unique constraint on (platform, merchant_id) to prevent duplicates.
 - sqlalchemy==2.0.27 (ORM)
 - pydantic==2.6.1 (Data validation)
 - PostgreSQL server
+
+## Data Flow & Transformation Example
+
+The following example demonstrates how we normalize data from different platforms into a unified schema:
+
+### 1. Platform-Specific Data
+
+**Shopify Raw Data**:
+```json
+{
+  "shop_id": "SHOP123",
+  "shop_name": "Fashion Forward",
+  "gross_sales": 125000.00,
+  "orders_count": 2500,
+  "average_order_amount": 50.00,
+  "customer_count": 1200,
+  "product_count": 150,
+  "abandoned_cart_rate": 0.25,
+  "shopify_plus": true,
+  "app_usage": 12
+}
+```
+
+**WooCommerce Raw Data**:
+```json
+{
+  "store_id": "WC456",
+  "store_name": "Tech Gadgets",
+  "net_sales": 98000.00,
+  "order_volume": 1960,
+  "avg_order_total": 50.00,
+  "registered_users": 980,
+  "published_products": 75,
+  "woocommerce_version": "7.2.1",
+  "active_plugins": 15,
+  "payment_gateways": 3
+}
+```
+
+### 2. Normalized Database Schema
+
+After transformation, both merchants are stored in our unified schema:
+
+```sql
+-- Shopify merchant
+INSERT INTO merchant_metrics (
+  merchant_id, platform, merchant_name,
+  total_sales, total_orders, average_order_value,
+  total_customers, total_products
+) VALUES (
+  'SHOP123', 'shopify', 'Fashion Forward',
+  125000.00, 2500, 50.00,
+  1200, 150
+);
+
+-- WooCommerce merchant
+INSERT INTO merchant_metrics (
+  merchant_id, platform, merchant_name,
+  total_sales, total_orders, average_order_value,
+  total_customers, total_products
+) VALUES (
+  'WC456', 'woocommerce', 'Tech Gadgets',
+  98000.00, 1960, 50.00,
+  980, 75
+);
+```
+
+### 3. Cross-Platform Merchant Example
+
+Here's an example of a merchant operating on both platforms:
+
+**Shopify Data**:
+```json
+{
+  "shop_id": "MULTI789",
+  "shop_name": "Global Electronics",
+  "gross_sales": 200000.00,
+  "orders_count": 4000,
+  "average_order_amount": 50.00,
+  "customer_count": 2000,
+  "product_count": 200,
+  "abandoned_cart_rate": 0.20,
+  "shopify_plus": true,
+  "app_usage": 18
+}
+```
+
+**WooCommerce Data**:
+```json
+{
+  "store_id": "MULTI789",
+  "store_name": "Global Electronics",
+  "net_sales": 150000.00,
+  "order_volume": 3000,
+  "avg_order_total": 50.00,
+  "registered_users": 1500,
+  "published_products": 100,
+  "woocommerce_version": "7.2.1",
+  "active_plugins": 20,
+  "payment_gateways": 4
+}
+```
+
+### 4. Unified API Response
+
+When querying the merchant across platforms:
+
+```json
+{
+  "merchant_id": "MULTI789",
+  "merchant_name": "Global Electronics",
+  "platforms": [
+    {
+      "platform": "shopify",
+      "total_sales": 200000.00,
+      "total_orders": 4000,
+      "average_order_value": 50.00,
+      "total_customers": 2000,
+      "total_products": 200,
+      "updated_at": "2024-01-31T00:00:00"
+    },
+    {
+      "platform": "woocommerce",
+      "total_sales": 150000.00,
+      "total_orders": 3000,
+      "average_order_value": 50.00,
+      "total_customers": 1500,
+      "total_products": 100,
+      "updated_at": "2024-01-31T00:00:00"
+    }
+  ],
+  "total_sales": 350000.00,
+  "total_orders": 7000,
+  "average_order_value": 50.00,
+  "total_customers": 3500
+}
+```
+
+### Data Flow Diagram
+
+```mermaid
+graph LR
+    subgraph "External APIs"
+        S[Shopify API] -->|Raw Data| N[Normalizer]
+        W[WooCommerce API] -->|Raw Data| N
+    end
+
+    subgraph "Data Transformation"
+        N -->|Normalized Data| DB[(PostgreSQL)]
+    end
+
+    subgraph "Unified API"
+        DB -->|Query| API[FastAPI]
+        API -->|Unified Response| C[Client]
+    end
+
+    style S fill:#5e17eb,color:white
+    style W fill:#96588a,color:white
+    style N fill:#f9a825,color:black
+    style DB fill:#0277bd,color:white
+    style API fill:#2e7d32,color:white
+    style C fill:#616161,color:white
+```
+
+This diagram shows:
+1. Raw data from different platforms with unique schemas
+2. Normalization process that transforms data into a unified format
+3. Storage in PostgreSQL with consistent schema
+4. Unified API that serves normalized data to clients
+
+The example demonstrates how we:
+- Handle platform-specific data structures
+- Normalize them into a consistent format
+- Store them in a unified database
+- Serve them through a single API endpoint
+- Support cross-platform merchant analysis
